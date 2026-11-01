@@ -1,0 +1,4 @@
+Copyright (c) 2026 Raman. All rights reserved.
+
+This software is proprietary. No permission is granted to copy, modify,
+distribute or sublicense it without written permission from the copyright holder.
