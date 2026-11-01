@@ -27,4 +27,14 @@ ERPNext + Frappe HR + infiniPresence in Docker, behind Caddy for automatic HTTPS
   infinipresence entry is skipped there because the app is layered separately.
 
 ## First boot
-Takes ~30 minutes: the base image (Frappe, ERPNext, HRMS) is built once on the VM and reused.
+Takes ~20 minutes: the base image (Frappe, ERPNext, HRMS) is built once on the VM and reused.
+If site creation is interrupted, the next deploy drops the half-made site and creates it again.
+
+## Logins
+- `Administrator` with the password in the instance metadata key `admin-password`.
+- Sample employees (`asha@example.com`, `tom@`, `priya@`, `daniel@`, `emma@`) use the
+  password set in `infinipresence/demo/data.py`.
+
+## Following a different branch
+`gcloud compute instances add-metadata infinipresence-test --zone europe-west2-b --metadata app-branch=<branch>`;
+the VM picks it up within 3 minutes.
