@@ -1,0 +1,117 @@
+# infiniPresence test stack, adapted from frappe_docker's pwd.yml.
+# Caddy terminates HTTPS for ${DOMAIN} (an sslip.io name for the VM's IP).
+x-app: &app
+  image: ${IMAGE}
+  restart: unless-stopped
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+
+services:
+  configurator:
+    <<: *app
+    restart: "no"
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host db;
+        bench set-config -gp db_port 3306;
+        bench set-config -g redis_cache "redis://redis-cache:6379";
+        bench set-config -g redis_queue "redis://redis-queue:6379";
+        bench set-config -g redis_socketio "redis://redis-queue:6379";
+        bench set-config -gp socketio_port 9000;
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    <<: *app
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  frontend:
+    <<: *app
+    command: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${DOMAIN}
+      UPSTREAM_REAL_IP_ADDRESS: 172.16.0.0/12
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+    depends_on: [backend, websocket]
+
+  websocket:
+    <<: *app
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  queue:
+    <<: *app
+    command: ["bench", "worker", "--queue", "long,default,short"]
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *app
+    command: ["bench", "schedule"]
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  db:
+    image: mariadb:10.6
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+
+  redis-cache:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+
+  redis-queue:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-queue-data:/data
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    command: ["caddy", "reverse-proxy", "--from", "${DOMAIN}", "--to", "frontend:8080"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [frontend]
+
+volumes:
+  db-data:
+  redis-queue-data:
+  sites:
+  logs:
+  caddy-data:
+  caddy-config:
