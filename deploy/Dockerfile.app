@@ -9,7 +9,7 @@ COPY --chown=frappe:0 . apps/infinipresence
 # Built assets live in /home/frappe/frappe-bench/assets (see frappe_docker's
 # layered image); sites/assets is linked to it only while building.
 RUN env/bin/pip install --no-cache-dir -e apps/infinipresence
-RUN grep -qx infinipresence sites/apps.txt || echo infinipresence >> sites/apps.txt
+RUN ls -1 apps > sites/apps.txt
 RUN ln -sfn /home/frappe/frappe-bench/assets sites/assets \
   && (bench build --app infinipresence \
       || ln -sfn /home/frappe/frappe-bench/apps/infinipresence/infinipresence/public assets/infinipresence) \
