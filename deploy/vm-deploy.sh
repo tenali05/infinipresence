@@ -53,12 +53,18 @@ bench() { $DC exec -T backend bench "$@"; }
 for i in $(seq 60); do $DC exec -T backend true 2>/dev/null && break; sleep 5; done
 
 # 3. Site: create on first deploy, migrate afterwards.
+if [ ! -f site-ready ] && $DC exec -T backend test -d "sites/$SITE"; then
+  echo "Site $SITE was not fully created last time; recreating it."
+  bench drop-site "$SITE" --force --no-backup --db-root-username root --db-root-password "$DB_PASSWORD"
+  rm -f demo-loaded
+fi
 if ! $DC exec -T backend test -d "sites/$SITE"; then
   echo "Creating site $SITE..."
   bench new-site "$SITE" --mariadb-user-host-login-scope='%' \
     --admin-password "$ADMIN_PASSWORD" --db-root-username root --db-root-password "$DB_PASSWORD" \
     --install-app erpnext --install-app hrms --install-app infinipresence --set-default
   bench --site "$SITE" set-config host_name "https://$DOMAIN"
+  touch site-ready
 else
   bench --site "$SITE" list-apps | grep -q infinipresence || bench --site "$SITE" install-app infinipresence
   bench --site "$SITE" migrate
@@ -82,4 +88,9 @@ docker image ls --format '{{.Repository}}:{{.Tag}}' | grep '^infinipresence-app:
   | grep -v ":$TAG$" | xargs -r docker image rm >/dev/null 2>&1 || true
 docker builder prune -af >/dev/null 2>&1 || true
 
+for i in $(seq 30); do
+  curl -sf "https://$DOMAIN/api/method/ping" >/dev/null && break; sleep 10
+done
+curl -sS "https://$DOMAIN/api/method/ping" || true
+echo
 echo "READY https://$DOMAIN (commit $TAG)"
