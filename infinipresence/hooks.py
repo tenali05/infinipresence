@@ -8,7 +8,23 @@ app_license = "custom"
 # Apps
 # ------------------
 
-required_apps = ["hrms"]
+required_apps = ["frappe/hrms"]
+
+# infiniPresence lives at /presence (employees) and /presence/admin (admins).
+add_to_apps_screen = [
+	{
+		"name": "infinipresence",
+		"logo": "/assets/infinipresence/icons/icon-192.png",
+		"title": "infiniPresence",
+		"route": "/presence/admin",
+	}
+]
+
+# Employees are website users (no desk); after sign-in they land on the check-in page.
+get_website_user_home_page = "infinipresence.install.website_user_home_page"
+
+after_install = "infinipresence.install.after_install"
+after_migrate = "infinipresence.install.after_migrate"
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [

@@ -1,0 +1,64 @@
+:root {
+	--bg: #f5f7fb;
+	--card: #ffffff;
+	--ink: #0f172a;
+	--muted: #64748b;
+	--line: #e2e8f0;
+	--brand: #16a34a;
+	--brand-ink: #ffffff;
+	--warn: #b45309;
+	--warn-bg: #fef3c7;
+	--bad: #b91c1c;
+	--bad-bg: #fee2e2;
+	--good-bg: #dcfce7;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+	font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header.bar { background: #0f172a; color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+header.bar img { width: 28px; height: 28px; border-radius: 6px; }
+header.bar .title { font-weight: 600; flex: 1; }
+header.bar a { color: #cbd5e1; text-decoration: none; font-size: 14px; margin-left: 12px; }
+main { max-width: 520px; margin: 0 auto; padding: 16px; }
+main.wide { max-width: 1100px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+h1 { font-size: 22px; margin: 4px 0 12px; }
+h2 { font-size: 17px; margin: 0 0 10px; }
+p.muted, .muted { color: var(--muted); font-size: 14px; }
+label { display: block; font-size: 14px; color: var(--muted); margin: 10px 0 4px; }
+input, select { width: 100%; padding: 11px 12px; font-size: 16px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
+button, .btn { display: inline-flex; justify-content: center; align-items: center; gap: 8px; width: 100%; padding: 13px 16px; font-size: 16px;
+	font-weight: 600; border: 0; border-radius: 12px; background: var(--brand); color: var(--brand-ink); cursor: pointer; text-decoration: none; margin-top: 12px; }
+button.secondary, .btn.secondary { background: #e2e8f0; color: var(--ink); }
+button.danger { background: var(--bad-bg); color: var(--bad); }
+button.small { width: auto; padding: 8px 12px; font-size: 14px; margin: 0 6px 0 0; }
+button:disabled { opacity: .55; cursor: default; }
+.btn.google { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.tabs button { width: auto; margin: 0; padding: 9px 14px; background: #e2e8f0; color: var(--ink); font-size: 15px; }
+.tabs button.on { background: var(--ink); color: #fff; }
+.msg { padding: 10px 12px; border-radius: 10px; font-size: 15px; margin-top: 12px; }
+.msg.bad { background: var(--bad-bg); color: var(--bad); }
+.msg.good { background: var(--good-bg); color: #166534; }
+.msg.warn { background: var(--warn-bg); color: var(--warn); }
+.cam { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #0b1220; border-radius: 12px; overflow: hidden; }
+.cam video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.cam .ring { position: absolute; inset: 12% 24%; border: 3px dashed rgba(255,255,255,.55); border-radius: 50%; pointer-events: none; }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #e2e8f0; }
+.pill.ok { background: var(--good-bg); color: #166534; }
+.pill.no { background: var(--bad-bg); color: var(--bad); }
+.pill.wait { background: var(--warn-bg); color: var(--warn); }
+.row { display: flex; gap: 10px; align-items: center; }
+.row > * { flex: 1; }
+.logs { list-style: none; padding: 0; margin: 0; }
+.logs li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.logs li:last-child { border-bottom: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { color: var(--muted); font-weight: 600; }
+td img.face { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #e2e8f0; }
+.scroll { overflow-x: auto; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.stat b { display: block; font-size: 24px; }
+.hidden { display: none !important; }
