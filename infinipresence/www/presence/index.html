@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Presence">
+<link rel="manifest" href="/assets/infinipresence/manifest.json">
+<link rel="apple-touch-icon" href="/assets/infinipresence/icons/apple-touch-icon.png">
+<link rel="icon" href="/assets/infinipresence/icons/icon-192.png">
+<link rel="stylesheet" href="/assets/infinipresence/css/presence.css">
+<title>infiniPresence</title>
+</head>
+<body>
+<header class="bar">
+	<img src="/assets/infinipresence/icons/icon-192.png" alt="">
+	<span class="title">infiniPresence</span>
+	<a id="admin-link" class="hidden" href="/presence/admin">Admin</a>
+	<a id="logout-link" class="hidden" href="/api/method/web_logout">Sign out</a>
+</header>
+<main>
+	<div id="loading" class="card muted">Loading…</div>
+
+	<!-- Guest: sign in or register -->
+	<section id="v-guest" class="hidden">
+		<h1>Welcome</h1>
+		<div class="card">
+			<div class="tabs">
+				<button id="t-login" class="on" type="button">Sign in</button>
+				<button id="t-register" type="button">Register</button>
+			</div>
+			<form id="f-login">
+				<label for="l-email">Email</label>
+				<input id="l-email" type="email" autocomplete="username" required>
+				<label for="l-pwd">Password</label>
+				<input id="l-pwd" type="password" autocomplete="current-password" required>
+				<button type="submit">Sign in</button>
+			</form>
+			<form id="f-register" class="hidden">
+				<label for="r-name">Full name</label>
+				<input id="r-name" autocomplete="name" required>
+				<label for="r-email">Email</label>
+				<input id="r-email" type="email" autocomplete="email" required>
+				<label for="r-pwd">Password (8+ characters)</label>
+				<input id="r-pwd" type="password" autocomplete="new-password" minlength="8" required>
+				<button type="submit">Create account</button>
+			</form>
+			<a id="google" class="btn google hidden" href="#">
+				<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+				Continue with Google
+			</a>
+			<div id="guest-msg"></div>
+		</div>
+		<p class="muted">New accounts can check in once an admin approves them.</p>
+	</section>
+
+	<!-- Register face -->
+	<section id="v-enroll" class="hidden">
+		<h1>Register your face</h1>
+		<div class="card">
+			<p class="muted">Take one clear photo of your face. It is used to confirm it's you each time you check in.</p>
+			<div class="cam"><video id="enroll-video" playsinline muted></video><div class="ring"></div></div>
+			<button id="enroll-start" type="button">Turn on camera</button>
+			<button id="enroll-take" class="hidden" type="button">Take photo</button>
+			<div id="enroll-msg"></div>
+		</div>
+	</section>
+
+	<!-- Waiting for approval -->
+	<section id="v-pending" class="hidden">
+		<h1>Almost there</h1>
+		<div class="card">
+			<p><span class="pill wait">Waiting for approval</span></p>
+			<p>Your face is registered. An admin needs to approve your account and assign your office. Check back soon.</p>
+			<button id="pending-refresh" class="secondary" type="button">Check again</button>
+			<button id="pending-retake" class="secondary" type="button">Retake face photo</button>
+		</div>
+	</section>
+
+	<section id="v-rejected" class="hidden">
+		<h1>No access</h1>
+		<div class="card"><p>Your account is not approved for check-in. Contact your admin if this is a mistake.</p></div>
+	</section>
+
+	<!-- Approved: check in -->
+	<section id="v-checkin" class="hidden">
+		<h1 id="hello"></h1>
+		<div class="card">
+			<div class="row" style="align-items:flex-start">
+				<div>
+					<div class="muted">Your office</div>
+					<b id="office-name"></b>
+				</div>
+				<div style="text-align:right">
+					<div class="muted">You are</div>
+					<b id="office-distance">…</b>
+				</div>
+			</div>
+			<div id="no-office" class="msg warn hidden">Your admin hasn't assigned your office yet.</div>
+		</div>
+		<div class="card">
+			<div class="cam"><video id="checkin-video" playsinline muted></video><div class="ring"></div></div>
+			<button id="checkin-btn" type="button">Check in</button>
+			<div id="checkin-msg"></div>
+		</div>
+		<div class="card">
+			<h2>Today</h2>
+			<ul id="logs" class="logs"></ul>
+		</div>
+		<p class="muted" id="install-hint">Tip: add this page to your home screen. iPhone: Share → Add to Home Screen. Android: menu ⋮ → Add to Home screen.</p>
+	</section>
+</main>
+<script src="/assets/infinipresence/js/presence.js"></script>
+<script>
+(function () {
+	const $ = (id) => document.getElementById(id);
+	const P = window.presence;
+	const views = ["loading", "v-guest", "v-enroll", "v-pending", "v-rejected", "v-checkin"];
+	const isGuest = {{ "true" if is_guest else "false" }};
+	let state = null;
+	let watchId = null;
+	let lastCoords = null;
+
+	function show(id) {
+		views.forEach((v) => $(v).classList.toggle("hidden", v !== id));
+		if (id !== "v-enroll") P.stopCamera($("enroll-video"));
+		if (id !== "v-checkin") {
+			P.stopCamera($("checkin-video"));
+			if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+		}
+	}
+	function msg(el, text, kind) {
+		$(el).innerHTML = text ? '<div class="msg ' + (kind || "bad") + '">' + P.esc(text) + "</div>" : "";
+	}
+	async function busy(btn, label, fn) {
+		const old = btn.textContent;
+		btn.disabled = true; btn.textContent = label;
+		try { return await fn(); } finally { btn.disabled = false; btn.textContent = old; }
+	}
+
+	// ---------- guest ----------
+	async function showGuest() {
+		show("v-guest");
+		try {
+			const opts = await P.call("infinipresence.api.get_login_options", null, "GET");
+			if (opts.google_login_url) { $("google").href = opts.google_login_url; $("google").classList.remove("hidden"); }
+			if (!opts.signup_enabled) $("t-register").classList.add("hidden");
+		} catch (e) {}
+	}
+	function tab(which) {
+		$("t-login").classList.toggle("on", which === "login");
+		$("t-register").classList.toggle("on", which === "register");
+		$("f-login").classList.toggle("hidden", which !== "login");
+		$("f-register").classList.toggle("hidden", which !== "register");
+		msg("guest-msg", "");
+	}
+	$("t-login").onclick = () => tab("login");
+	$("t-register").onclick = () => tab("register");
+	async function login(email, pwd) {
+		const res = await fetch("/api/method/login", {
+			method: "POST", credentials: "same-origin",
+			headers: { "Content-Type": "application/json", Accept: "application/json" },
+			body: JSON.stringify({ usr: email, pwd: pwd }),
+		});
+		if (!res.ok) throw new Error("Wrong email or password.");
+		location.replace("/presence");
+	}
+	$("f-login").onsubmit = (e) => {
+		e.preventDefault();
+		const btn = e.target.querySelector("button");
+		busy(btn, "Signing in…", () => login($("l-email").value.trim(), $("l-pwd").value))
+			.catch((err) => msg("guest-msg", err.message));
+	};
+	$("f-register").onsubmit = (e) => {
+		e.preventDefault();
+		const btn = e.target.querySelector("button");
+		busy(btn, "Creating account…", async () => {
+			const email = $("r-email").value.trim();
+			await P.call("infinipresence.api.register", { full_name: $("r-name").value, email: email, password: $("r-pwd").value });
+			await login(email, $("r-pwd").value);
+		}).catch((err) => msg("guest-msg", err.message));
+	};
+
+	// ---------- face registration ----------
+	$("enroll-start").onclick = async () => {
+		msg("enroll-msg", "");
+		try {
+			await busy($("enroll-start"), "Starting camera…", async () => {
+				await P.startCamera($("enroll-video"));
+				P.loadFaceModels().catch(() => {});
+			});
+			$("enroll-start").classList.add("hidden");
+			$("enroll-take").classList.remove("hidden");
+		} catch (e) { msg("enroll-msg", e.message || "Camera is blocked. Allow the camera for this site."); }
+	};
+	$("enroll-take").onclick = () => {
+		msg("enroll-msg", "");
+		busy($("enroll-take"), "Scanning…", async () => {
+			const scan = await P.scanFace($("enroll-video"));
+			state = await P.call("infinipresence.api.enroll_face", scan);
+			render();
+		}).catch((e) => msg("enroll-msg", e.message));
+	};
+	$("pending-refresh").onclick = () => load();
+	$("pending-retake").onclick = () => {
+		$("enroll-start").classList.remove("hidden");
+		$("enroll-take").classList.add("hidden");
+		show("v-enroll");
+	};
+
+	// ---------- check in ----------
+	function renderCheckin() {
+		$("hello").textContent = "Hi " + (state.full_name || "").split(" ")[0];
+		const loc = state.location;
+		$("office-name").textContent = loc ? (loc.location_name || loc.name) : "Not assigned";
+		$("no-office").classList.toggle("hidden", !!loc);
+		$("checkin-btn").textContent = state.next_log_type === "OUT" ? "Check out" : "Check in";
+		$("checkin-btn").disabled = !loc;
+		const logs = state.logs || [];
+		$("logs").innerHTML = logs.length
+			? logs.map((l) => "<li><span>" + (l.log_type === "IN" ? "Checked in" : "Checked out") + "</span><b>" + P.time(l.time) + "</b></li>").join("")
+			: '<li class="muted">No check-ins yet today.</li>';
+		if (loc && watchId == null && navigator.geolocation) {
+			watchId = navigator.geolocation.watchPosition(
+				(pos) => {
+					lastCoords = { coords: pos.coords, at: Date.now() };
+					const d = P.distance(loc.latitude, loc.longitude, pos.coords.latitude, pos.coords.longitude);
+					const inside = !loc.checkin_radius || d <= loc.checkin_radius;
+					$("office-distance").innerHTML = '<span class="pill ' + (inside ? "ok" : "no") + '">' +
+						(d < 1000 ? Math.round(d) + " m" : (d / 1000).toFixed(1) + " km") + (inside ? " · in range" : " away") + "</span>";
+				},
+				() => { $("office-distance").textContent = "Location off"; },
+				{ enableHighAccuracy: true, maximumAge: 10000 }
+			);
+		}
+		if (loc && !$("checkin-video").srcObject) {
+			P.startCamera($("checkin-video")).catch((e) => msg("checkin-msg", e.message || "Camera is blocked. Allow the camera for this site."));
+			P.loadFaceModels().catch(() => {});
+		}
+	}
+	$("checkin-btn").onclick = () => {
+		msg("checkin-msg", "");
+		const label = state.next_log_type === "OUT" ? "Checking out…" : "Checking in…";
+		busy($("checkin-btn"), label, async () => {
+			if (!$("checkin-video").srcObject) await P.startCamera($("checkin-video"));
+			const fresh = lastCoords && Date.now() - lastCoords.at < 20000 ? Promise.resolve(lastCoords.coords) : P.getPosition();
+			const [coords, scan] = await Promise.all([fresh, P.scanFace($("checkin-video"))]);
+			const res = await P.call("infinipresence.api.check_in", {
+				latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy,
+				descriptor: scan.descriptor, photo: scan.photo,
+			});
+			state = res.state;
+			msg("checkin-msg", (res.log_type === "IN" ? "Checked in" : "Checked out") + " at " + P.time(res.time) + ".", "good");
+		})
+			.then(() => renderCheckin())
+			.catch((e) => msg("checkin-msg", e.message));
+	};
+
+	function render() {
+		$("admin-link").classList.toggle("hidden", !state.is_manager);
+		$("logout-link").classList.remove("hidden");
+		if (!state.has_face && state.status !== "Rejected") return show("v-enroll");
+		if (state.status === "Approved") { show("v-checkin"); return renderCheckin(); }
+		if (state.status === "Rejected") return show("v-rejected");
+		show("v-pending");
+	}
+	async function load() {
+		if (isGuest) return showGuest();
+		try {
+			state = await P.call("infinipresence.api.get_state", null, "GET");
+			render();
+		} catch (e) {
+			$("loading").textContent = e.message;
+		}
+	}
+	if (window.matchMedia("(display-mode: standalone)").matches) $("install-hint").classList.add("hidden");
+	load();
+})();
+</script>
+</body>
+</html>

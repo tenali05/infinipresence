@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "autoname": "field:user",
+ "creation": "2026-11-13 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "full_name",
+  "status",
+  "column_break_1",
+  "shift_location",
+  "employee",
+  "approved_by",
+  "section_face",
+  "face_photo",
+  "face_descriptor"
+ ],
+ "fields": [
+  {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "full_name", "fieldtype": "Data", "label": "Full Name", "in_list_view": 1},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Pending\nApproved\nRejected", "default": "Pending", "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+  {"fieldname": "shift_location", "fieldtype": "Link", "label": "Office Location", "options": "Shift Location", "in_list_view": 1},
+  {"fieldname": "employee", "fieldtype": "Link", "label": "Employee", "options": "Employee", "read_only": 1},
+  {"fieldname": "approved_by", "fieldtype": "Link", "label": "Approved By", "options": "User", "read_only": 1},
+  {"fieldname": "section_face", "fieldtype": "Section Break", "label": "Face"},
+  {"fieldname": "face_photo", "fieldtype": "Attach Image", "label": "Face Photo", "read_only": 1},
+  {"fieldname": "face_descriptor", "fieldtype": "Long Text", "label": "Face Descriptor", "hidden": 1, "read_only": 1}
+ ],
+ "image_field": "face_photo",
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-13 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "infiniPresence",
+ "name": "Presence Profile",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1},
+  {"role": "Presence Manager", "read": 1, "write": 1, "create": 1, "report": 1, "export": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name",
+ "track_changes": 1
+}

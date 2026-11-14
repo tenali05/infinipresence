@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="/assets/infinipresence/manifest.json">
+<link rel="apple-touch-icon" href="/assets/infinipresence/icons/apple-touch-icon.png">
+<link rel="icon" href="/assets/infinipresence/icons/icon-192.png">
+<link rel="stylesheet" href="/assets/infinipresence/css/presence.css">
+<title>infiniPresence admin</title>
+</head>
+<body>
+<header class="bar">
+	<img src="/assets/infinipresence/icons/icon-192.png" alt="">
+	<span class="title">infiniPresence admin</span>
+	<a href="/presence">My check-in</a>
+	<a href="/app">Desk</a>
+	<a href="/api/method/web_logout">Sign out</a>
+</header>
+<main class="wide">
+	<div class="tabs">
+		<button data-tab="attendance" class="on" type="button">Attendance</button>
+		<button data-tab="people" type="button">People <span id="pending-count"></span></button>
+		<button data-tab="locations" type="button">Locations</button>
+	</div>
+	<div id="top-msg"></div>
+
+	<section id="tab-attendance">
+		<div class="card">
+			<div class="row">
+				<div><label for="a-from">From</label><input id="a-from" type="date"></div>
+				<div><label for="a-to">To</label><input id="a-to" type="date"></div>
+			</div>
+			<div class="row">
+				<button id="a-load" type="button">Show</button>
+				<button id="a-csv" class="secondary" type="button">Download CSV</button>
+			</div>
+		</div>
+		<div class="stats">
+			<div class="stat"><span class="muted">People</span><b id="s-people">–</b></div>
+			<div class="stat"><span class="muted">Present</span><b id="s-present">–</b></div>
+			<div class="stat"><span class="muted">Absent</span><b id="s-absent">–</b></div>
+		</div>
+		<div class="card scroll">
+			<table>
+				<thead><tr><th>Date</th><th>Name</th><th>Office</th><th>Status</th><th>First in</th><th>Last out</th><th>Hours</th></tr></thead>
+				<tbody id="a-rows"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+			</table>
+		</div>
+	</section>
+
+	<section id="tab-people" class="hidden">
+		<div class="card scroll">
+			<table>
+				<thead><tr><th></th><th>Name</th><th>Status</th><th>Office</th><th></th></tr></thead>
+				<tbody id="p-rows"></tbody>
+			</table>
+		</div>
+		<p class="muted">New sign-ups appear here as Pending once they have registered their face. Approve them and choose their office.</p>
+	</section>
+
+	<section id="tab-locations" class="hidden">
+		<div class="card scroll">
+			<table>
+				<thead><tr><th>Office</th><th>Latitude</th><th>Longitude</th><th>Radius (m)</th><th></th></tr></thead>
+				<tbody id="l-rows"></tbody>
+			</table>
+		</div>
+		<div class="card">
+			<h2 id="l-title">Add an office</h2>
+			<form id="l-form">
+				<input id="l-name-key" type="hidden">
+				<label for="l-name">Name</label>
+				<input id="l-name" required>
+				<div class="row">
+					<div><label for="l-lat">Latitude</label><input id="l-lat" type="number" step="any" required></div>
+					<div><label for="l-lon">Longitude</label><input id="l-lon" type="number" step="any" required></div>
+					<div><label for="l-radius">Radius (m)</label><input id="l-radius" type="number" min="10" value="150" required></div>
+				</div>
+				<div class="row">
+					<button id="l-here" class="secondary" type="button">Use my current location</button>
+					<button type="submit">Save office</button>
+				</div>
+				<p class="muted">Tip: in Google Maps, right-click the office and click the coordinates to copy them.</p>
+			</form>
+		</div>
+	</section>
+</main>
+<script src="/assets/infinipresence/js/presence.js"></script>
+<script>
+(function () {
+	const $ = (id) => document.getElementById(id);
+	const P = window.presence;
+	let data = { profiles: [], locations: [] };
+	let rows = [];
+
+	function flash(text, kind) {
+		$("top-msg").innerHTML = text ? '<div class="msg ' + (kind || "bad") + '">' + P.esc(text) + "</div>" : "";
+		if (text && kind === "good") setTimeout(() => flash(""), 3000);
+	}
+	document.querySelectorAll(".tabs button").forEach((b) => {
+		b.onclick = () => {
+			document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
+			["attendance", "people", "locations"].forEach((t) => $("tab-" + t).classList.toggle("hidden", t !== b.dataset.tab));
+			flash("");
+		};
+	});
+
+	// ---------- attendance ----------
+	const today = new Date();
+	const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+	$("a-from").value = iso(today);
+	$("a-to").value = iso(today);
+	async function loadAttendance() {
+		try {
+			const res = await P.call("infinipresence.api.attendance", { date: $("a-from").value, to_date: $("a-to").value || $("a-from").value }, "GET");
+			rows = res.rows;
+			const people = new Set(rows.map((r) => r.employee)).size;
+			const present = rows.filter((r) => r.status === "Present").length;
+			$("s-people").textContent = people;
+			$("s-present").textContent = present;
+			$("s-absent").textContent = rows.length - present;
+			const locName = (n) => { const l = data.locations.find((x) => x.name === n); return l ? l.location_name || l.name : n || ""; };
+			$("a-rows").innerHTML = rows.length ? rows.map((r) =>
+				"<tr><td>" + P.esc(r.date) + "</td><td>" + P.esc(r.full_name) + '<div class="muted">' + P.esc(r.user) + "</div></td><td>" +
+				P.esc(locName(r.location)) + '</td><td><span class="pill ' + (r.status === "Present" ? "ok" : "no") + '">' + r.status + "</span></td><td>" +
+				P.time(r.first_in) + "</td><td>" + P.time(r.last_out) + "</td><td>" + (r.hours == null ? "" : r.hours) + "</td></tr>"
+			).join("") : '<tr><td colspan="7" class="muted">No approved people yet.</td></tr>';
+		} catch (e) { flash(e.message); }
+	}
+	$("a-load").onclick = loadAttendance;
+	$("a-csv").onclick = () => {
+		const head = ["Date", "Name", "Email", "Office", "Status", "First in", "Last out", "Hours"];
+		const lines = [head].concat(rows.map((r) => [r.date, r.full_name, r.user, r.location, r.status, P.time(r.first_in), P.time(r.last_out), r.hours == null ? "" : r.hours]));
+		const csv = lines.map((l) => l.map((v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"').join(",")).join("\n");
+		const a = document.createElement("a");
+		a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+		a.download = "attendance-" + $("a-from").value + "-to-" + $("a-to").value + ".csv";
+		a.click();
+	};
+
+	// ---------- people ----------
+	function locationOptions(selected) {
+		return '<option value="">Choose office…</option>' + data.locations.map((l) =>
+			'<option value="' + P.esc(l.name) + '"' + (l.name === selected ? " selected" : "") + ">" + P.esc(l.location_name || l.name) + "</option>").join("");
+	}
+	function renderPeople() {
+		const order = { Pending: 0, Approved: 1, Rejected: 2 };
+		const list = data.profiles.slice().sort((a, b) => order[a.status] - order[b.status]);
+		const pending = list.filter((p) => p.status === "Pending").length;
+		$("pending-count").textContent = pending ? "(" + pending + ")" : "";
+		$("p-rows").innerHTML = list.length ? list.map((p) => {
+			const pill = p.status === "Approved" ? "ok" : p.status === "Pending" ? "wait" : "no";
+			const face = p.face_photo ? '<img class="face" src="' + P.esc(p.face_photo) + '" alt="">' : '<span class="muted">no face</span>';
+			let actions = "";
+			if (p.status === "Pending") actions = '<button class="small" data-act="approve">Approve</button><button class="small danger" data-act="reject">Reject</button>';
+			if (p.status === "Approved") actions = '<button class="small secondary" data-act="move">Save office</button><button class="small secondary" data-act="reset">Reset face</button><button class="small danger" data-act="reject">Remove access</button>';
+			if (p.status === "Rejected") actions = '<button class="small" data-act="approve">Approve</button>';
+			return '<tr data-name="' + P.esc(p.name) + '"><td>' + face + "</td><td>" + P.esc(p.full_name) + '<div class="muted">' + P.esc(p.user) + "</div></td>" +
+				'<td><span class="pill ' + pill + '">' + p.status + "</span></td><td><select>" + locationOptions(p.shift_location) + "</select></td><td>" + actions + "</td></tr>";
+		}).join("") : '<tr><td colspan="5" class="muted">Nobody has signed up yet.</td></tr>';
+	}
+	$("p-rows").onclick = async (e) => {
+		const btn = e.target.closest("button[data-act]");
+		if (!btn) return;
+		const tr = btn.closest("tr");
+		const profile = tr.dataset.name;
+		const loc = tr.querySelector("select").value;
+		const act = btn.dataset.act;
+		try {
+			if ((act === "approve" || act === "move") && !loc) throw new Error("Choose an office first.");
+			if (act === "reject" && !confirm("Remove check-in access for " + profile + "?")) return;
+			if (act === "reset" && !confirm("Ask " + profile + " to register their face again?")) return;
+			btn.disabled = true;
+			const method = { approve: "approve", move: "set_location", reject: "reject", reset: "reset_face" }[act];
+			const args = { profile: profile };
+			if (act === "approve" || act === "move") args.shift_location = loc;
+			data = await P.call("infinipresence.api." + method, args);
+			renderPeople(); renderLocations();
+			flash({ approve: "Approved.", move: "Office saved.", reject: "Access removed.", reset: "Face reset. They'll be asked to register again." }[act], "good");
+			loadAttendance();
+		} catch (err) { flash(err.message); btn.disabled = false; }
+	};
+
+	// ---------- locations ----------
+	function renderLocations() {
+		$("l-rows").innerHTML = data.locations.length ? data.locations.map((l) =>
+			'<tr data-name="' + P.esc(l.name) + '"><td>' + P.esc(l.location_name || l.name) + "</td><td>" + l.latitude + "</td><td>" + l.longitude +
+			"</td><td>" + l.checkin_radius + '</td><td><button class="small secondary" type="button">Edit</button></td></tr>').join("")
+			: '<tr><td colspan="5" class="muted">No offices yet. Add one below.</td></tr>';
+	}
+	$("l-rows").onclick = (e) => {
+		if (!e.target.closest("button")) return;
+		const l = data.locations.find((x) => x.name === e.target.closest("tr").dataset.name);
+		$("l-title").textContent = "Edit " + (l.location_name || l.name);
+		$("l-name-key").value = l.name;
+		$("l-name").value = l.location_name || l.name;
+		$("l-name").disabled = true;
+		$("l-lat").value = l.latitude; $("l-lon").value = l.longitude; $("l-radius").value = l.checkin_radius;
+		$("l-form").scrollIntoView({ behavior: "smooth" });
+	};
+	$("l-here").onclick = async () => {
+		try {
+			const c = await P.getPosition();
+			$("l-lat").value = c.latitude.toFixed(6); $("l-lon").value = c.longitude.toFixed(6);
+			flash("Filled in your current location (accurate to about " + Math.round(c.accuracy) + " m).", "good");
+		} catch (e) { flash(e.message); }
+	};
+	$("l-form").onsubmit = async (e) => {
+		e.preventDefault();
+		try {
+			data = await P.call("infinipresence.api.save_location", {
+				name: $("l-name-key").value || null, location_name: $("l-name").value,
+				latitude: $("l-lat").value, longitude: $("l-lon").value, checkin_radius: $("l-radius").value,
+			});
+			$("l-form").reset(); $("l-name-key").value = ""; $("l-name").disabled = false; $("l-title").textContent = "Add an office";
+			renderLocations(); renderPeople();
+			flash("Office saved.", "good");
+		} catch (err) { flash(err.message); }
+	};
+
+	(async function init() {
+		try {
+			data = await P.call("infinipresence.api.admin_overview", null, "GET");
+			renderPeople(); renderLocations();
+		} catch (e) { flash(e.message); }
+		loadAttendance();
+	})();
+})();
+</script>
+</body>
+</html>

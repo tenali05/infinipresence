@@ -1,0 +1,15 @@
+{
+  "name": "infiniPresence",
+  "short_name": "Presence",
+  "description": "Check in at the office with your face and location.",
+  "start_url": "/presence",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {"src": "/assets/infinipresence/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/assets/infinipresence/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "/assets/infinipresence/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
