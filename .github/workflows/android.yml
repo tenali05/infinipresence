@@ -3,6 +3,7 @@
 # Outputs (under the run's "Artifacts"):
 #   infinipresence-android  - app-release.aab for Google Play (signed if the signing secrets are set)
 #                             and app-debug.apk to install directly on a phone for testing
+#   android-latest release  - the same two files on the repo's Releases page
 #   android-smoke-test      - screenshot of the app running on an Android emulator
 #
 # Signing secrets (Settings > Secrets and variables > Actions), all optional:
@@ -33,7 +34,7 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  contents: write  # to publish the build as the "android-latest" pre-release
 
 concurrency:
   group: android-${{ github.ref }}
@@ -109,11 +110,28 @@ jobs:
           path: mobile/dist/
           retention-days: 30
 
+      - name: Publish as the "android-latest" pre-release (easy download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: mobile/dist
+        run: |
+          gh release delete android-latest --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
+          gh release create android-latest app-release.aab app-debug.apk build-info.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Android app: latest build ($VERSION_NAME, code $VERSION_CODE)" \
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7} for $PRESENCE_SERVER. app-debug.apk installs directly on a phone. app-release.aab is for Google Play (unsigned unless the signing secrets are set)."
+
   smoke-test:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: mobile/scripts
+
+      - run: cp mobile/scripts/smoke.mjs mobile-smoke.mjs
+
       - uses: actions/download-artifact@v4
         with:
           name: infinipresence-android
@@ -125,6 +143,10 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install and launch the app on an Android 14 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -135,18 +157,24 @@ jobs:
           script: |
             adb install -r dist/app-debug.apk
             adb shell am start -W -n com.infinipresence.app/.MainActivity
-            sleep 20
+            sleep 25
             adb exec-out screencap -p > dist/emulator-start.png
-            adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml dist/ui.xml
-            adb logcat -d -s Capacitor:* chromium:* AndroidRuntime:* > dist/logcat.txt || true
-            grep -q "Welcome" dist/ui.xml && grep -q "Sign in" dist/ui.xml && echo "App started and shows the sign-in screen."
-
+            adb logcat -d > dist/logcat.txt || true
+            grep -E "Capacitor|chromium|AndroidRuntime" dist/logcat.txt | tail -40 || true
+            adb forward tcp:9222 localabstract:webview_devtools_remote_$(adb shell pidof com.infinipresence.app | tr -d '\r')
+            node mobile-smoke.mjs | tee dist/smoke.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: android-smoke-test
           path: |
             dist/emulator-start.png
-            dist/ui.xml
+            dist/smoke.txt
             dist/logcat.txt
           retention-days: 14
+
+      - name: Add the emulator screenshot to the android-latest pre-release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload android-latest dist/emulator-start.png dist/smoke.txt --clobber --repo "$GITHUB_REPOSITORY" || true
