@@ -18,6 +18,7 @@ from frappe.utils import add_days, cint, flt, get_datetime, getdate, now_datetim
 MANAGER_ROLES = {"Presence Manager", "System Manager"}
 DESCRIPTOR_LENGTH = 128
 DEVICE_ID = "infiniPresence web"
+DEVICE_IDS = {"web": DEVICE_ID, "android": "infiniPresence Android", "ios": "infiniPresence iOS"}
 
 
 def _conf(key, default):
@@ -252,7 +253,7 @@ def enroll_face(descriptor, photo):
 
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=30, seconds=60 * 60)
-def check_in(latitude, longitude, descriptor, photo=None, accuracy=None):
+def check_in(latitude, longitude, descriptor, photo=None, accuracy=None, source=None):
 	"""Record a check-in or check-out after checking location and face."""
 	_require_login()
 	profile = _get_profile(frappe.session.user)
@@ -291,7 +292,7 @@ def check_in(latitude, longitude, descriptor, photo=None, accuracy=None):
 			"employee": profile.employee,
 			"log_type": log_type,
 			"time": now_datetime(),
-			"device_id": DEVICE_ID,
+			"device_id": DEVICE_IDS.get(source or "web", DEVICE_ID),
 			"latitude": latitude,
 			"longitude": longitude,
 		}
@@ -307,6 +308,97 @@ def check_in(latitude, longitude, descriptor, photo=None, accuracy=None):
 		"face_distance": round(face, 3),
 		"state": get_state(),
 	}
+
+
+# ---------------------------------------------------------------------------
+# phone app (Android / iOS)
+#
+# The app ships its own screens and calls this API from native code, so it cannot use the
+# browser's session cookie. Signing in gives the app a personal API token (Frappe's standard
+# "token key:secret" auth). Signing in again, signing out or deleting the account replaces
+# the secret, so an older token stops working.
+
+
+def _new_app_token(user):
+	from frappe.utils.password import set_encrypted_password
+
+	api_key = frappe.db.get_value("User", user, "api_key")
+	if not api_key:
+		api_key = frappe.generate_hash(length=15)
+		frappe.db.set_value("User", user, "api_key", api_key, update_modified=False)
+	secret = frappe.generate_hash(length=24)
+	set_encrypted_password("User", user, secret, "api_secret")
+	return f"{api_key}:{secret}"
+
+
+def _revoke_app_token(user):
+	from frappe.utils.password import set_encrypted_password
+
+	if frappe.db.get_value("User", user, "api_key"):
+		set_encrypted_password("User", user, frappe.generate_hash(length=24), "api_secret")
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=10, seconds=10 * 60)
+def app_login(usr, pwd):
+	"""Sign in from the phone app. Returns a token for the Authorization header."""
+	from frappe.utils.password import check_password
+
+	usr = (usr or "").strip()
+	user = frappe.db.get_value("User", {"email": usr.lower()}, "name") or usr
+	try:
+		user = check_password(user, pwd or "")
+	except frappe.AuthenticationError:
+		frappe.throw(_("Wrong email or password."), frappe.AuthenticationError)
+	if not cint(frappe.db.get_value("User", user, "enabled")):
+		frappe.throw(_("This account is turned off. Contact your admin."), frappe.AuthenticationError)
+	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
+		# Their API keys may be used by integrations; replacing the secret would break them.
+		frappe.throw(_("System admins can't use the phone app. Open /presence/admin in a browser."))
+	return {"token": _new_app_token(user)}
+
+
+@frappe.whitelist(methods=["POST"])
+def app_logout():
+	_require_login()
+	_revoke_app_token(frappe.session.user)
+	return {"ok": True}
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_my_account():
+	"""Delete the signed-in user's face data and check-in photos, and close their account.
+
+	Check-in times and locations stay in the employer's attendance records (Employee Checkin),
+	as described in the privacy policy at /presence/privacy.
+	"""
+	_require_login()
+	user = frappe.session.user
+	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
+		frappe.throw(_("System admin accounts can't be deleted from here."))
+	profile = _get_profile(user)
+	if profile:
+		if profile.employee:
+			checkins = frappe.get_all("Employee Checkin", filters={"employee": profile.employee}, pluck="name")
+			if checkins:
+				for f in frappe.get_all(
+					"File",
+					filters={"attached_to_doctype": "Employee Checkin", "attached_to_name": ["in", checkins]},
+					pluck="name",
+				):
+					frappe.delete_doc("File", f, ignore_permissions=True, force=True)
+			frappe.db.set_value("Employee", profile.employee, {"status": "Left", "user_id": None})
+		for f in frappe.get_all(
+			"File", filters={"attached_to_doctype": "Presence Profile", "attached_to_name": profile.name}, pluck="name"
+		):
+			frappe.delete_doc("File", f, ignore_permissions=True, force=True)
+		frappe.delete_doc("Presence Profile", profile.name, ignore_permissions=True, force=True)
+	_revoke_app_token(user)
+	frappe.db.set_value("User", user, {"enabled": 0, "api_key": None})
+	from frappe.sessions import clear_sessions
+
+	clear_sessions(user=user, keep_current=False, force=True)
+	return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

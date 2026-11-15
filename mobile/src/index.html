@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https: data: blob:">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="presence.css">
+<link rel="stylesheet" href="app.css">
+<title>infiniPresence</title>
+</head>
+<body>
+<header class="bar">
+	<img src="icon.png" alt="">
+	<span class="title">infiniPresence</span>
+	<a id="admin-link" class="hidden" href="#">Admin</a>
+	<a id="logout-link" class="hidden" href="#">Sign out</a>
+</header>
+<main>
+	<div id="loading" class="card muted">Loading…</div>
+
+	<!-- Guest: sign in or register -->
+	<section id="v-guest" class="hidden">
+		<h1>Welcome</h1>
+		<div class="card">
+			<div class="tabs">
+				<button id="t-login" class="on" type="button">Sign in</button>
+				<button id="t-register" type="button">Register</button>
+			</div>
+			<form id="f-login">
+				<label for="l-email">Email</label>
+				<input id="l-email" type="email" autocomplete="username" autocapitalize="off" required>
+				<label for="l-pwd">Password</label>
+				<input id="l-pwd" type="password" autocomplete="current-password" required>
+				<button type="submit">Sign in</button>
+			</form>
+			<form id="f-register" class="hidden">
+				<label for="r-name">Full name</label>
+				<input id="r-name" autocomplete="name" required>
+				<label for="r-email">Email</label>
+				<input id="r-email" type="email" autocomplete="email" autocapitalize="off" required>
+				<label for="r-pwd">Password (8+ characters)</label>
+				<input id="r-pwd" type="password" autocomplete="new-password" minlength="8" required>
+				<button type="submit">Create account</button>
+			</form>
+			<div id="guest-msg"></div>
+		</div>
+		<p class="muted">New accounts can check in once an admin approves them.</p>
+	</section>
+
+	<!-- Register face -->
+	<section id="v-enroll" class="hidden">
+		<h1>Register your face</h1>
+		<div class="card">
+			<p class="muted">Take one clear photo of your face. It is used to confirm it's you each time you check in.</p>
+			<div class="cam"><video id="enroll-video" playsinline muted></video><div class="ring"></div></div>
+			<label class="consent"><input id="enroll-consent" type="checkbox">
+				<span>I agree that my face photo and a face measurement made from it are sent to my employer's
+				infiniPresence server and used only to confirm it's me when I check in.
+				<a class="policy-link" href="#">Privacy policy</a></span></label>
+			<button id="enroll-start" type="button" disabled>Turn on camera</button>
+			<button id="enroll-take" class="hidden" type="button">Take photo</button>
+			<div id="enroll-msg"></div>
+		</div>
+	</section>
+
+	<!-- Waiting for approval -->
+	<section id="v-pending" class="hidden">
+		<h1>Almost there</h1>
+		<div class="card">
+			<p><span class="pill wait">Waiting for approval</span></p>
+			<p>Your face is registered. An admin needs to approve your account and assign your office. Check back soon.</p>
+			<button id="pending-refresh" class="secondary" type="button">Check again</button>
+			<button id="pending-retake" class="secondary" type="button">Retake face photo</button>
+		</div>
+	</section>
+
+	<section id="v-rejected" class="hidden">
+		<h1>No access</h1>
+		<div class="card"><p>Your account is not approved for check-in. Contact your admin if this is a mistake.</p></div>
+	</section>
+
+	<!-- Approved: check in -->
+	<section id="v-checkin" class="hidden">
+		<h1 id="hello"></h1>
+		<div class="card">
+			<div class="row" style="align-items:flex-start">
+				<div>
+					<div class="muted">Your office</div>
+					<b id="office-name"></b>
+				</div>
+				<div style="text-align:right">
+					<div class="muted">You are</div>
+					<b id="office-distance">…</b>
+				</div>
+			</div>
+			<div id="no-office" class="msg warn hidden">Your admin hasn't assigned your office yet.</div>
+			<p class="muted small-note">Your location is used only while this screen is open, to check you're at your office.</p>
+		</div>
+		<div class="card">
+			<div class="cam"><video id="checkin-video" playsinline muted></video><div class="ring"></div></div>
+			<button id="checkin-btn" type="button">Check in</button>
+			<div id="checkin-msg"></div>
+		</div>
+		<div class="card">
+			<h2>Today</h2>
+			<ul id="logs" class="logs"></ul>
+		</div>
+	</section>
+
+	<footer class="account">
+		<a class="policy-link" href="#">Privacy policy</a>
+		<button id="delete-start" class="linkish hidden" type="button">Delete my account</button>
+		<div id="delete-box" class="card hidden">
+			<p><b>Delete your account?</b> This removes your face photo, face data and check-in photos, and you
+			won't be able to sign in again. Your check-in times stay in your employer's attendance records.</p>
+			<button id="delete-yes" class="danger" type="button">Yes, delete my account</button>
+			<button id="delete-no" class="secondary" type="button">Cancel</button>
+			<div id="delete-msg"></div>
+		</div>
+	</footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

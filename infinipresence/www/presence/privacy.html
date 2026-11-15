@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/assets/infinipresence/icons/icon-192.png">
+<link rel="stylesheet" href="/assets/infinipresence/css/presence.css">
+<title>infiniPresence privacy policy</title>
+<style>main.policy h2 { margin-top: 22px; } main.policy li { margin-bottom: 6px; }</style>
+</head>
+<body>
+<header class="bar">
+	<img src="/assets/infinipresence/icons/icon-192.png" alt="">
+	<span class="title">infiniPresence</span>
+</header>
+<main class="policy">
+<h1>Privacy policy</h1>
+<p class="muted">Last updated {{ updated }}</p>
+
+<p>infiniPresence is a workplace attendance app. Employees use it to check in and out at their office
+with a face scan and their phone's location. This service is run by <b>{{ org }}</b> ("we"), the employer
+that gave you access. This policy covers the infiniPresence Android app, the iPhone app and the
+<code>/presence</code> web page.</p>
+
+<h2>What we collect</h2>
+<ul>
+	<li><b>Account details:</b> your name, email address and password (stored only as a secure hash).</li>
+	<li><b>Face data:</b> one reference photo of your face, taken when you register, and a face measurement
+	(a list of 128 numbers) calculated from it. Each check-in also takes a photo and a new measurement.</li>
+	<li><b>Precise location:</b> your phone's GPS position at the moment you check in or out, and while the
+	check-in screen is open (to show how far you are from your office). The app does not use your
+	location in the background.</li>
+	<li><b>Attendance records:</b> the time of each check-in and check-out, its location, and which office you
+	are assigned to.</li>
+</ul>
+
+<h2>How we use it</h2>
+<ul>
+	<li>To confirm that the person checking in is you, by comparing the new face measurement with your
+	registered one.</li>
+	<li>To confirm that you are within your office's check-in radius.</li>
+	<li>To keep attendance records for your employer (who was present, when, and for how long).</li>
+	<li>Check-in photos are kept so an admin can review a check-in if there is a dispute.</li>
+</ul>
+<p>We do not sell your data, use it for advertising, or share it with anyone outside your employer, except
+the hosting provider that runs the server on our behalf, or where the law requires it. Face data is never
+used for any purpose other than attendance check-in.</p>
+
+<h2>Where it is stored and how it is protected</h2>
+<p>Your data is stored on your employer's infiniPresence server. It is sent over an encrypted (HTTPS)
+connection. Face photos are private files that only you and your employer's infiniPresence admins can
+open. The face scan itself runs on your phone; the phone sends the measurement and photo to the server.</p>
+
+<h2>Camera and location permissions</h2>
+<p>The app asks for the camera to take your face photo, and for precise location to check you are at your
+office. Both are used only while you are using the app. If you deny either permission you can't check in,
+but you can still sign in and see your status.</p>
+
+<h2>How long we keep it</h2>
+<ul>
+	<li>Your registered face photo and measurement: until you delete your account, an admin resets your face,
+	or your access ends.</li>
+	<li>Check-in photos: until you delete your account, or your employer deletes them.</li>
+	<li>Check-in times and locations: as long as your employer needs them for its attendance and payroll records.</li>
+</ul>
+
+<h2>Deleting your account and data</h2>
+<p>You can delete your account at any time:</p>
+<ul>
+	<li><b>In the app:</b> sign in, then tap <b>Delete my account</b> at the bottom of the screen.</li>
+	<li><b>On the web:</b> sign in at <a href="/presence">/presence</a> and choose <b>Delete my account</b>.</li>
+	{% if contact %}<li><b>By email:</b> write to <a href="mailto:{{ contact }}">{{ contact }}</a> from the address you
+	signed up with.</li>{% endif %}
+</ul>
+<p>Deleting your account immediately removes your registered face photo, your face measurement and all your
+check-in photos, and closes your account so you can no longer sign in. Your check-in times and locations stay
+in your employer's attendance records.</p>
+
+<h2>Children</h2>
+<p>infiniPresence is for employees and is not meant for anyone under 16.</p>
+
+<h2>Changes and contact</h2>
+<p>If we change this policy we will update the date above.
+{% if contact %}Questions about your data: <a href="mailto:{{ contact }}">{{ contact }}</a>.{% else %}Questions about your
+data: contact your employer's infiniPresence admin.{% endif %}</p>
+</main>
+</body>
+</html>

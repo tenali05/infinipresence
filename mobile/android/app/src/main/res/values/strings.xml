@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">infiniPresence</string>
+    <string name="title_activity_main">infiniPresence</string>
+    <string name="package_name">com.infinipresence.app</string>
+    <string name="custom_url_scheme">com.infinipresence.app</string>
+</resources>

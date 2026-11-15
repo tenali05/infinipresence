@@ -1,0 +1,180 @@
+# Builds the infiniPresence Android app.
+#
+# Outputs (under the run's "Artifacts"):
+#   infinipresence-android  - app-release.aab for Google Play (signed if the signing secrets are set)
+#                             and app-debug.apk to install directly on a phone for testing
+#   android-latest release  - the same two files on the repo's Releases page
+#   android-smoke-test      - screenshot of the app running on an Android emulator
+#
+# Signing secrets (Settings > Secrets and variables > Actions), all optional:
+#   ANDROID_KEYSTORE_BASE64   base64 of the upload keystore (.jks)
+#   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+# Without them the .aab is unsigned and must be signed before uploading (see mobile/README.md).
+name: Android app
+
+on:
+  push:
+    paths:
+      - "mobile/**"
+      - "infinipresence/public/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+    inputs:
+      server:
+        description: "infiniPresence site the app connects to (https://...)"
+        required: false
+        default: ""
+      version_code:
+        description: "Google Play versionCode (must increase with every upload)"
+        required: false
+        default: ""
+      version_name:
+        description: "Version shown to users, e.g. 1.0.1"
+        required: false
+        default: ""
+
+permissions:
+  contents: write  # to publish the build as the "android-latest" pre-release
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      PRESENCE_SERVER: ${{ inputs.server || vars.PRESENCE_SERVER || 'https://34-39-66-44.sslip.io' }}
+      VERSION_CODE: ${{ inputs.version_code || github.run_number }}
+      VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0 platform-tools"
+
+      - name: Build web layer and sync into the Android project
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Set up release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "PRESENCE_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "Release will be signed with the upload key."
+          else
+            echo "::notice::No signing secrets set: app-release.aab is unsigned. Sign it before uploading to Google Play."
+          fi
+
+      - name: Build release bundle (.aab) and debug app (.apk)
+        working-directory: mobile/android
+        env:
+          PRESENCE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PRESENCE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PRESENCE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease assembleDebug \
+            -PversionCode="$VERSION_CODE" -PversionName="$VERSION_NAME"
+          mkdir -p ../dist
+          cp app/build/outputs/bundle/release/app-release.aab ../dist/
+          cp app/build/outputs/apk/debug/app-debug.apk ../dist/
+          echo "server=$PRESENCE_SERVER versionCode=$VERSION_CODE versionName=$VERSION_NAME" > ../dist/build-info.txt
+          ls -la ../dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: infinipresence-android
+          path: mobile/dist/
+          retention-days: 30
+
+      - name: Publish as the "android-latest" pre-release (easy download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: mobile/dist
+        run: |
+          gh release delete android-latest --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
+          gh release create android-latest app-release.aab app-debug.apk build-info.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Android app: latest build ($VERSION_NAME, code $VERSION_CODE)" \
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7} for $PRESENCE_SERVER. app-debug.apk installs directly on a phone. app-release.aab is for Google Play (unsigned unless the signing secrets are set)."
+
+  smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: mobile/scripts
+
+      - run: cp mobile/scripts/smoke.mjs mobile-smoke.mjs
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: infinipresence-android
+          path: dist
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install and launch the app on an Android 14 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install -r dist/app-debug.apk
+            adb shell am start -W -n com.infinipresence.app/.MainActivity
+            sleep 25
+            adb exec-out screencap -p > dist/emulator-start.png
+            adb logcat -d > dist/logcat.txt || true
+            grep -E "Capacitor|chromium|AndroidRuntime" dist/logcat.txt | tail -40 || true
+            adb forward tcp:9222 localabstract:webview_devtools_remote_$(adb shell pidof com.infinipresence.app | tr -d '\r')
+            node mobile-smoke.mjs | tee dist/smoke.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-smoke-test
+          path: |
+            dist/emulator-start.png
+            dist/smoke.txt
+            dist/logcat.txt
+          retention-days: 14
+
+      - name: Add the emulator screenshot to the android-latest pre-release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload android-latest dist/emulator-start.png dist/smoke.txt --clobber --repo "$GITHUB_REPOSITORY" || true

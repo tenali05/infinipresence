@@ -62,3 +62,9 @@ td img.face { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; 
 .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 .stat b { display: block; font-size: 24px; }
 .hidden { display: none !important; }
+
+footer.account { text-align: center; margin: 22px 0 8px; font-size: 14px; }
+footer.account a { color: var(--muted); }
+footer.account .card { text-align: left; margin-top: 12px; }
+button.linkish { display: inline; width: auto; background: none; color: var(--muted); padding: 0 0 0 14px; margin: 0;
+	font-size: 14px; font-weight: 400; text-decoration: underline; }

@@ -1,0 +1,25 @@
+{
+  "name": "infinipresence-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "infiniPresence employee check-in app for Android (and iOS later), built with Capacitor.",
+  "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "sync": "npm run build && cap sync android",
+    "assets": "capacitor-assets generate --android --iconBackgroundColor '#0f172a' --splashBackgroundColor '#0f172a'",
+    "open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/geolocation": "^8.2.4",
+    "@capacitor/preferences": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.2",
+    "esbuild": "^0.28.2"
+  }
+}

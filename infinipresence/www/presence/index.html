@@ -112,6 +112,17 @@
 		</div>
 		<p class="muted" id="install-hint">Tip: add this page to your home screen. iPhone: Share → Add to Home Screen. Android: menu ⋮ → Add to Home screen.</p>
 	</section>
+	<footer id="account" class="account hidden">
+		<a href="/presence/privacy">Privacy policy</a>
+		<button id="delete-start" class="linkish" type="button">Delete my account</button>
+		<div id="delete-box" class="card hidden">
+			<p><b>Delete your account?</b> This removes your face photo, face data and check-in photos, and you
+			won't be able to sign in again. Your check-in times stay in your employer's attendance records.</p>
+			<button id="delete-yes" class="danger" type="button">Yes, delete my account</button>
+			<button id="delete-no" class="secondary" type="button">Cancel</button>
+			<div id="delete-msg"></div>
+		</div>
+	</footer>
 </main>
 <script src="/assets/infinipresence/js/presence.js"></script>
 <script>
@@ -259,7 +270,17 @@
 			.catch((e) => msg("checkin-msg", e.message));
 	};
 
+	$("delete-start").onclick = () => $("delete-box").classList.remove("hidden");
+	$("delete-no").onclick = () => $("delete-box").classList.add("hidden");
+	$("delete-yes").onclick = () => {
+		busy($("delete-yes"), "Deleting…", async () => {
+			await P.call("infinipresence.api.delete_my_account", {});
+			location.replace("/presence");
+		}).catch((e) => msg("delete-msg", e.message));
+	};
+
 	function render() {
+		$("account").classList.toggle("hidden", !!state.is_manager);
 		$("admin-link").classList.toggle("hidden", !state.is_manager);
 		$("logout-link").classList.remove("hidden");
 		if (!state.has_face && state.status !== "Rejected") return show("v-enroll");

@@ -1,0 +1,7 @@
+/* App-only tweaks on top of the shared presence.css */
+html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+body { padding-bottom: env(safe-area-inset-bottom); }
+header.bar { padding-top: calc(12px + env(safe-area-inset-top)); }
+label.consent { display: flex; gap: 10px; align-items: flex-start; color: var(--ink); font-size: 14px; margin-top: 14px; }
+label.consent input { width: 20px; height: 20px; flex: none; margin: 2px 0 0; }
+.small-note { margin: 10px 0 0; font-size: 13px; }
